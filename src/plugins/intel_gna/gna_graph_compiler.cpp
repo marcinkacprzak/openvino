@@ -195,7 +195,7 @@ void GNAGraphCompiler::fillSplitConnections(InferenceEngine::CNNLayerPtr layer) 
 
 void GNAPluginNS::GNAGraphCompiler::SetValidatorTarget(std::string target) {
     auto temp = GNALimitations::Cnn2D::AbstractValidator::Create(target);
-    cnn2dValidator.swap(temp);
+    cnn2dValidator.reset(temp.release());
 }
 
 void GNAPluginNS::GNAGraphCompiler::ValidateCnn2D(std::string name,
@@ -358,7 +358,8 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
     }
 
     if (GNAConvolutionLayer::isConv2D(in_height, in_width, in_channels, convolution._kernel_y, convolution._kernel_x) ||
-        in_height != 1) {
+        in_height != 1 ||
+        out_channels < GNALimitations::convMinFiltersNum) {
         // TensorFlow default layout is NHWC
         // OpenVino Default layout is   NCHW
         // GNA Convolution input is     NHCW (old) or NHWC (new)
@@ -619,6 +620,8 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
     if (convolution._padding_y != convolution._pads_end.at(Y_AXIS)) {
         THROW_GNA_LAYER_EXCEPTION(layer) << "Convolution's input padding is not symetric along Y axis";
     }
+    convolution._padding_x = convolution._pads_end.at(X_AXIS);
+    convolution._padding_y = convolution._pads_end.at(Y_AXIS);
 
     if (convolution._kernel_x > effectiveInputWidth ||
         convolution._kernel_y > effectiveInputHeight) {
@@ -654,10 +657,10 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
     const auto weightPrec = OvGnaTypeIntFromBytes(convolution._weights->getTensorDesc().getPrecision().size());
     const auto biasPrec = OvGnaTypeIntFromBytes(biasPrecision.size());
 
-    ValidateCnn2D(layer->name,
-        in_height, in_width, in_channels,
-        convolution._kernel_y, convolution._kernel_x, filter_n, convolution._stride_y, convolution._stride_x,
-        inputPrec, convolution._dilation_y, convolution._dilation_x);
+    //ValidateCnn2D(layer->name,
+    //    in_height, in_width, in_channels,
+    //    convolution._kernel_y, convolution._kernel_x, filter_n, convolution._stride_y, convolution._stride_x,
+    //    inputPrec, convolution._dilation_y, convolution._dilation_x);
 
     float weight_scale_factor = getScaleFactor(layer, QuantizedDataType::weights);
     float output_scale_factor = getScaleFactor(layer, QuantizedDataType::output);
@@ -706,7 +709,15 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
         dnn->num_rotate_columns = num_inputs / dnn->num_rotate_rows;
     }
 
-    connectOutput(layer, ptr_outputs, num_data_bytes_out);
+    // if the nest layer is activation or pooling we dont need to allocate for outputs
+    // in the GNA mode
+    // TODO: we have to allocate in the GNA_SW_FP32 mode
+    auto out1 = getInputTo(layer->outData.front());
+    if (out1.size() == 1 && (LayerInfo(out1.begin()->second).isActivation() ||
+        LayerInfo(out1.begin()->second).isPooling())) {
+    } else {
+        connectOutput(layer, ptr_outputs, num_data_bytes_out);
+    }
 
     const auto kernelHW = convolution._kernel_y * convolution._kernel_x;
 
@@ -975,9 +986,13 @@ void GNAGraphCompiler::PoolingPrimitive(InferenceEngine::CNNLayerPtr layer) {
         num_data_bytes_in = num_rows * num_columns * inputs->getPrecision().size();
     }
 
-    auto fused_to_layer = connectInput(layer, ptr_inputs, num_data_bytes_in);
-    // Pooling will be fused with the previous layer and we need to use it's order id
-    layer->userValue.v_int = fused_to_layer.input->userValue.v_int;
+    // Input for pooling is allocated in FP32 mode only as GNA does not use need intermediate buffer to be
+    // allocated using GNA Library API
+    if (gnaFlags->sw_fp32) {
+        auto fused_to_layer = connectInput(layer, ptr_inputs, num_data_bytes_in);
+        // Pooling will be fused with the previous layer and we need to use it's order id
+        layer->userValue.v_int = fused_to_layer.input->userValue.v_int;
+    }
     connectOutput(layer, ptr_outputs, num_data_bytes_out);
 }
 
@@ -1496,7 +1511,7 @@ void GNAGraphCompiler::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool 
     // layer without biases might be connected to functional layer without activations
     auto prevLayer = CNNNetPrevLayer(layer);
     bool useBiasConnection = false;
-    if (LayerInfo(prevLayer).has32BOutput()) {
+    if (LayerInfo(prevLayer).has32BOutput() && !(LayerInfo(prevLayer).isPooling() && LayerInfo(CNNNetPrevLayer(prevLayer)).isActivation())) {
         if (weightable._biases) {
             THROW_GNA_EXCEPTION << "Layer: "
                 << layer->name << ", cannot be connected to its parent: " << prevLayer->name
@@ -1530,7 +1545,15 @@ void GNAGraphCompiler::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool 
     size_t num_data_bytes_in = num_columns_in * (num_rows_in + num_padding) * inputs->getPrecision().size();
 
     auto connectionInfo = connectInput(layer, useBiasConnection ? ptr_biases : ptr_inputs, num_data_bytes_in);
-    connectOutput(layer, ptr_outputs, num_data_bytes_out);
+
+
+    // if the nest layer is activation we dont need to allocate for outputs
+    // in the GNA mode
+    // TODO: we have to allocate in the GNA_SW_FP32 mode
+    const auto nextLayers = getInputTo(layer->outData.front());
+    if (nextLayers.size() != 1 || !LayerInfo(nextLayers.begin()->second).isActivation()) {
+        connectOutput(layer, ptr_outputs, num_data_bytes_out);
+    }
 
     auto transpose = false;
     auto transposedRows = 0;
@@ -2094,10 +2117,19 @@ case name:\
         ptr_outputs,
         ptr_pwl_segments_target);
 
-    auto fused_to_layer = connectInput(layer, ptr_inputs, num_data_bytes_in);
-    // PWL will be fused with the previous layer and we need to use it's order id
-    layer->userValue.v_int = fused_to_layer.input->userValue.v_int;
-    connectOutput(layer, ptr_outputs, num_data_bytes_out);
+    if (gnaFlags->sw_fp32) {
+        auto fused_to_layer = connectInput(layer, ptr_inputs, num_data_bytes_in);
+        // PWL will be fused with the previous layer and we need to use it's order id
+        layer->userValue.v_int = fused_to_layer.input->userValue.v_int;
+    }
+
+    auto out1 = getInputTo(layer->outData.front());
+    const auto skipConnectOutput = out1.size() == 1 && (LayerInfo(out1.begin()->second).isActivation() ||
+                                                        LayerInfo(out1.begin()->second).isPooling());
+
+    if (!skipConnectOutput) {
+        connectOutput(layer, ptr_outputs, num_data_bytes_out);
+    }
 
     if (ptr_pwl_segments_target != nullptr) {
         gnamem->getQueue(REGION_RO)->push_local_ptr(layer, ptr_pwl_segments_target,

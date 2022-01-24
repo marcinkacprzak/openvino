@@ -9,9 +9,11 @@
 #include "gna2-model-suecreek-header.h"
 #include "gna_api_wrapper.hpp"
 #include "gna2-device-api.h"
+#include "gna/gna_config.hpp"
 
 #include "gna2-tlv-writer.h"
 
+#include <numeric>
 #include <cstdint>
 #include <fstream>
 
@@ -56,7 +58,6 @@ void * ExportSueLegacyUsingGnaApi2(
 
 #define Gna2TlvTypeOVInputScaleFactor GNA2_TLV_IMPL_CHAR_TO_TYPE("OVIS")
 #define Gna2TlvTypeOVOutputScaleFactor GNA2_TLV_IMPL_CHAR_TO_TYPE("OVOS")
-#define Gna2ExportTlv(...) 1
 
 static_assert(std::numeric_limits<float>::is_iec559, "Float is not IEC 559 compatible");
 typedef std::array<char, sizeof(Gna2TlvRecord) + sizeof(float)> TlvFloatRecord;
@@ -71,14 +72,98 @@ TlvFloatRecord GetFloatInTLV(Gna2TlvType type, float value) {
 }
 }  // namespace
 
+#define Gna2TlvTypeOVString GNA2_TLV_IMPL_CHAR_TO_TYPE("OVSS")
+
+std::vector<uint8_t> GetStringAsTlv(Gna2TlvType type, const std::string& s) {
+    std::vector<uint8_t> record(sizeof(Gna2TlvRecord));
+    reinterpret_cast<Gna2TlvRecord*>(record.data())->type = type;
+
+    std::vector<uint8_t> vs(s.begin(), s.end());
+    vs.resize(vs.size() + (4 - vs.size() % 4) % 4, 0);
+    reinterpret_cast<Gna2TlvRecord*>(record.data())->length = vs.size();
+    record.insert(record.end(), vs.begin(), vs.end());
+    return record;
+}
+
+Gna2DeviceVersion getEmbeddedTargetFromCompileTarget(const std::string compileTarget) {
+    const std::map<std::string, Gna2DeviceVersion> targetMap = {
+        {"GNA_TARGET_3_1", Gna2DeviceVersionEmbedded3_1},
+        {"GNA_TARGET_3_5", Gna2DeviceVersionEmbedded3_5},
+        {"GNA_TARGET_3_6", Gna2DeviceVersionEmbedded3_6},
+    };
+    auto found = targetMap.find(compileTarget);
+    if (found == targetMap.end()) {
+        return Gna2DeviceVersionEmbedded1_0;
+    }
+    return found->second;
+}
+
+Gna2DeviceVersion getTlvTargetFromCompileTarget(const std::string compileTarget) {
+    const auto target = getEmbeddedTargetFromCompileTarget(compileTarget);
+    const std::set<Gna2DeviceVersion> supportedTargets = {
+        Gna2DeviceVersionEmbedded3_1,
+        Gna2DeviceVersionEmbedded3_5,
+        Gna2DeviceVersionEmbedded3_6,
+    };
+    const auto found = supportedTargets.count(target) > 0;
+    if (!found) {
+        THROW_GNA_EXCEPTION << "Unsupported compile target fot TLV export: " << compileTarget << "\n";
+    }
+    return target;
+}
+
+template <class T, class A>
+void WriteAllEndpoints(std::ostream& outStream, const T container, bool isInput, const A& allAllocations) {
+    const auto sfTlvType = isInput ? Gna2TlvTypeOVInputScaleFactor : Gna2TlvTypeOVOutputScaleFactor;
+    const auto tagMemory = isInput ? Gna2MemoryTagInput : Gna2MemoryTagOutput;
+    auto listOfAllocations = allAllocations.GetAllocationsInExportOrder();
+    const auto f =
+        std::find_if(listOfAllocations.cbegin(), listOfAllocations.cend(), [tagMemory](const GnaAllocation& a) -> bool {
+        return a.isTag(tagMemory);
+    });
+
+    for (const auto& endpoint : container) {
+        auto d = GetStringAsTlv(Gna2TlvTypeOVString, endpoint.name);
+        outStream.write((char*)d.data(), d.size());
+        auto tlvScaleFactor = GetFloatInTLV(sfTlvType, endpoint.scaleFactor);
+        outStream.write(tlvScaleFactor.data(), tlvScaleFactor.size());
+
+        if (f != listOfAllocations.cend() && endpoint.gnaPointer != nullptr) {
+            const auto gnaOffset = f->getOffset(endpoint.gnaPointer);
+            if (!gnaOffset.first) {
+                continue;
+            }
+            std::stringstream stream;
+            stream << "offset=[" << gnaOffset.second << "]";
+            std::string result(stream.str());
+            d = GetStringAsTlv(Gna2TlvTypeOVString, result);
+            outStream.write((char*)d.data(), d.size());
+        }
+        {
+            std::stringstream stream;
+            stream << "byteSize=[" << endpoint.byteSize << "]";
+            std::string result(stream.str());
+            d = GetStringAsTlv(Gna2TlvTypeOVString, result);
+            outStream.write((char*)d.data(), d.size());
+        }
+        {
+            std::stringstream stream;
+            stream << "numberOfBytesPerElement=[" << endpoint.numberOfBytesPerElement << "]";
+            std::string result(stream.str());
+            d = GetStringAsTlv(Gna2TlvTypeOVString, result);
+            outStream.write((char*)d.data(), d.size());
+        }
+    }
+}
+
 void ExportTlvModel(uint32_t modelId,
     uint32_t deviceIndex,
     std::ostream& outStream,
-    Gna2DeviceVersion deviceVersionToExport,
-    uint32_t input_size,
-    uint32_t output_size,
-    float inputSF,
-    float outputSF) {
+    std::string compileTarget,
+    const std::vector<GnaEndpoint>& allInputs,
+    const std::vector<GnaEndpoint>& allOutputs,
+    const GnaAllocations& allAllocations) {
+    const auto deviceVersionToExport = getTlvTargetFromCompileTarget(compileTarget);
 
     uint32_t exportConfig;
     auto status = Gna2ModelExportConfigCreate(gnaUserAllocatorAlignedPage, &exportConfig);
@@ -151,6 +236,13 @@ void ExportTlvModel(uint32_t modelId,
     const auto gnaLibraryVersion = GNADeviceHelper::GetGnaLibraryVersion();
 
     uint32_t outTlvSize = 0;
+
+    const char* userData = nullptr;
+    uint32_t userDataSize = 0;
+
+    const auto totalInputSize = GnaEndpoint::GetTotalByteSize(allInputs);
+    const auto totalOutputSize = GnaEndpoint::GetTotalByteSize(allOutputs);
+
     auto tlv_status = Gna2ExportTlv(
         deviceVersionToExport,
         gnaUserAllocator,
@@ -163,19 +255,18 @@ void ExportTlvModel(uint32_t modelId,
         (const char*)bufferStateRWData,
         sizeOfStateRWData,
         sizeOfScratchRWData,
-        input_size,
-        output_size,
+        totalInputSize,
+        totalOutputSize,
         gnaLibraryVersion.c_str(),
         nullptr,
         0);
 
     if (Gna2TlvStatusSuccess == tlv_status) {
         outStream.write(outTlv, outTlvSize);
-        auto tlvInSF = GetFloatInTLV(Gna2TlvTypeOVInputScaleFactor, inputSF);
-        auto tlvOutSF = GetFloatInTLV(Gna2TlvTypeOVOutputScaleFactor, outputSF);
-        outStream.write(tlvInSF.data(), tlvInSF.size());
-        outStream.write(tlvOutSF.data(), tlvOutSF.size());
+        WriteAllEndpoints(outStream, allInputs, true, allAllocations);
+        WriteAllEndpoints(outStream, allOutputs, false, allAllocations);
     }
+
     gnaUserFree(outTlv);
 
     gnaUserFree(bufferLayerDescriptors);
@@ -186,9 +277,11 @@ void ExportTlvModel(uint32_t modelId,
     gnaUserFree(bufferInputRWData);
     gnaUserFree(bufferOutputRWData);
 
-    GNADeviceHelper::checkGna2Status((Gna2Status)status, "ExportTlvModel");
     status = Gna2ModelExportConfigRelease(exportConfig);
     GNADeviceHelper::checkGna2Status(status, "Gna2ModelExportConfigRelease");
+    if (Gna2TlvStatusSuccess != tlv_status) {
+        THROW_GNA_EXCEPTION << "Not succesfull status returned: " << tlv_status << ", from Gna2ExportTlv() function\n";
+    }
 }
 
 void ExportLdForDeviceVersion(

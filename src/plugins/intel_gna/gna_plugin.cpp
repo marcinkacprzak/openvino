@@ -38,6 +38,7 @@
 #include "gna_graph_patterns.hpp"
 #include "gna_tensor_tools.hpp"
 #include "gna_itt.hpp"
+#include "gna2_model_export_helper.hpp"
 
 #include <ngraph/pass/manager.hpp>
 #include <legacy/convert_function_to_cnn_network.hpp>
@@ -336,15 +337,6 @@ std::string GNAPluginNS::GNAPlugin::GetCompileTarget() const {
     } else if (!config.gnaCompileTarget.empty()) {
         return config.gnaCompileTarget;
     }
-    return InferenceEngine::GNAConfigParams::GNA_TARGET_3_0;
-}
-
-std::string GNAPluginNS::GNAPlugin::GetCompileTarget() const {
-    if (gnadevice) {
-        return gnadevice->GetCompileTarget();
-    } else if (!config.gnaCompileTarget.empty()) {
-        return config.gnaCompileTarget;
-    }
     return "GNA_TARGET_3_5";
 }
 
@@ -375,8 +367,7 @@ void GNAPlugin::InitGNADevice() {
                     config.gnaCompileTarget,
                     config.swExactMode,
                     gnaFlags->performance_counting,
-                    !config.dumpXNNPath.empty(),
-                    GetDeviceVersionFromString(config.gnaCompileTarget));
+                    !config.dumpXNNPath.empty());
         size_t page_size_bytes = 4096;
         gnamem = std::make_shared<gna_memory_device>(memory::GNAAllocator(gnadevice), page_size_bytes);
     }
@@ -526,7 +517,7 @@ bool GNAPlugin::TryToInitOutput(const std::string &portName, InferenceEngine::CN
     });
     if (irLayerAvatar != graphCompiler.dnnComponents.components.end()) {
         initOutput(irLayerAvatar->dnnComponent.orientation_out, irLayerAvatar->dnnComponent.num_bytes_per_output,
-                   irLayerAvatar->dnnComponent.num_rows_out, &irLayerAvatar->dnnComponent.ptr_outputs);
+                   irLayerAvatar->dnnComponent.GetNumberOfOutputs(), &irLayerAvatar->dnnComponent.ptr_outputs);
         return true;
     }
 
@@ -1150,13 +1141,6 @@ void GNAPlugin::createRequestConfigsForGnaModels() {
     }
 }
 
-int GNAPlugin::GetDeviceVersionFromString(const std::string deviceString) {
-    if (deviceString.empty() || deviceString == InferenceEngine::GNAConfigParams::GNA_TARGET_2_0) {
-        return static_cast<int>(Gna2DeviceVersionEmbedded1_0);
-    }
-    return static_cast<int>(Gna2DeviceVersionEmbedded3_5);
-}
-
 void GNAPlugin::DumpXNNToFile() const {
     // TODO: output  precision as well as pointer might be incorrect, LSTM for sure
     // gna looks automatically set layer 0 as output and adjust it's pointer / precision/ size respectively
@@ -1167,6 +1151,7 @@ void GNAPlugin::DumpXNNToFile() const {
     if (!gnadevice) {
         THROW_GNA_EXCEPTION << "Cannot generate XNNDump for float network";
     }
+    const auto compileTarget = gnadevice->GetCompileTarget();
     std::ofstream dumpStream(config.dumpXNNPath, std::ios::out | std::ios::binary);
 
     auto const modelId = gnadevice->createModel(std::get<0>(gnaModels.front())->obj);
@@ -1181,16 +1166,9 @@ void GNAPlugin::DumpXNNToFile() const {
         dumpStream.write(reinterpret_cast<char*>(&dump.header), sizeof(Gna2ModelSueCreekHeader));
         dumpStream.write(reinterpret_cast<char*>(dump.model.get()), dump.header.ModelSize);
     } else {
-        uint32_t input_size = 0;
-        uint32_t output_size = 0;
-        for (auto i : inputsDesc)
-            input_size += i.get_allocated_size();
-        for (auto o : outputsDesc)
-            output_size += o.get_required_size();
-        auto inSF = inputsDesc.begin()->scale_factor;
-        auto outSF = outputsDesc.front().scale_factor;
-        gnadevice->dumpTLVForDeviceVersion(modelId, dumpStream,
-            input_size, output_size, inSF, outSF);
+        const auto inputsForTlv = GnaEndpoint::CreateFromDescriptorContainer(inputsDesc);
+        const auto outputsForTlv = GnaEndpoint::CreateFromDescriptorContainer(outputsDesc);
+        gnadevice->dumpTLVForDeviceVersion(modelId, dumpStream, inputsForTlv, outputsForTlv);
     }
     gnadevice->releaseModel(modelId);
 }

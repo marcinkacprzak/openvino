@@ -194,8 +194,13 @@ IE_SUPPRESS_DEPRECATED_END
 TEST_F(GNAPluginConfigTest, GnaConfigGnaExecTargetTest) {
     SetAndCompare(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET_2_0");
     EXPECT_EQ(config.gnaExecTarget, "GNA_TARGET_2_0");
+    EXPECT_EQ(config.gnaCompileTarget, "GNA_TARGET_2_0");
     SetAndCompare(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET_3_0");
     EXPECT_EQ(config.gnaExecTarget, "GNA_TARGET_3_0");
+    SetAndCompare(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET_3_1");
+    EXPECT_EQ(config.gnaExecTarget, "GNA_TARGET_3_1");
+    SetAndCompare(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET_3_5");
+    EXPECT_EQ(config.gnaExecTarget, "GNA_TARGET_3_5");
     ExpectThrow(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET_3_7");
     ExpectThrow(GNA_CONFIG_KEY(EXEC_TARGET), "0");
     ExpectThrow(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET_1_5");
@@ -207,6 +212,10 @@ TEST_F(GNAPluginConfigTest, GnaConfigGnaCompileTargetTest) {
     EXPECT_EQ(config.gnaCompileTarget, "GNA_TARGET_2_0");
     SetAndCompare(GNA_CONFIG_KEY(COMPILE_TARGET), "GNA_TARGET_3_0");
     EXPECT_EQ(config.gnaCompileTarget, "GNA_TARGET_3_0");
+    SetAndCompare(GNA_CONFIG_KEY(COMPILE_TARGET), "GNA_TARGET_3_1");
+    EXPECT_EQ(config.gnaCompileTarget, "GNA_TARGET_3_1");
+    SetAndCompare(GNA_CONFIG_KEY(COMPILE_TARGET), "GNA_TARGET_3_5");
+    EXPECT_EQ(config.gnaCompileTarget, "GNA_TARGET_3_5");
     ExpectThrow(GNA_CONFIG_KEY(COMPILE_TARGET), "GNA_TARGET_3_7");
     ExpectThrow(GNA_CONFIG_KEY(COMPILE_TARGET), "0");
     ExpectThrow(GNA_CONFIG_KEY(COMPILE_TARGET), "GNA_TARGET_1_5");

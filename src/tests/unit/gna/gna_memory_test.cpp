@@ -318,6 +318,7 @@ TEST_F(GNAMemoryTest, canCalculateReadWriteSectionSize) {
 
 TEST_F(GNAMemoryTest, canCalculateReadWriteSectionSizeWithAlignment) {
     GNAMemory<GNAPluginNS::memory::GNAFloatAllocator> memAligned(64);
+
     float* pFuture1 = reinterpret_cast<float*>(&pFuture1);
     float* pFuture2 = reinterpret_cast<float*>(&pFuture2);
 

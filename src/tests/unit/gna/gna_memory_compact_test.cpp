@@ -28,6 +28,8 @@ class GNAMemoryCompactTest : public ::testing::Test {
     }
 };
 
+/* Enable compact mode tests
+
 TEST_F(GNAMemoryCompactTest, canOptimizeReservePtr) {
     IE_SUPPRESS_DEPRECATED_START
     CNNLayerPtr layer1 = std::make_shared<CNNLayer>(LayerParams("layer1", "test", Precision::FP32));
@@ -367,3 +369,5 @@ TEST_F(GNAMemoryOrderTest, orderingFusedLayersActivationMaxPool) {
     plugin.LoadNetwork(cnn_network);
     plugin.Test();
 }
+
+*/ // Enable compact mode tests

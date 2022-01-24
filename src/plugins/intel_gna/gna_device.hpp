@@ -26,8 +26,11 @@
 #include "gna2-model-api.h"
 #include "gna2-model-export-api.h"
 #include "gna2-model-suecreek-header.h"
+#include "gna2_model_export_helper.hpp"
 
 #include "gna_device_allocation.hpp"
+
+#define Gna2DeviceVersionEmbedded3_6 static_cast<Gna2DeviceVersion>(0x35E)
 
 enum GnaWaitStatus : int {
     GNA_REQUEST_COMPLETED = 0,  // and removed from GNA library queue
@@ -53,7 +56,6 @@ class GNADeviceHelper {
     std::string executionTarget;
     std::string compileTarget;
     bool useDeviceEmbeddedExport = false;
-    Gna2DeviceVersion exportGeneration = Gna2DeviceVersionEmbedded1_0;
 
     static const uint32_t TotalGna2InstrumentationPoints = 2;
     Gna2InstrumentationPoint gna2InstrumentationPoints[TotalGna2InstrumentationPoints] = {
@@ -80,8 +82,7 @@ public:
          compileTarget(compileTargetIn),
          isPerformanceMeasuring(isPerformanceMeasuring),
          nGnaDeviceIndex{selectGnaDevice()},
-         useDeviceEmbeddedExport(deviceEmbedded),
-         exportGeneration(static_cast<Gna2DeviceVersion>(deviceVersionParsed)) {
+         useDeviceEmbeddedExport(deviceEmbedded) {
         open();
         initGnaPerfCounters();
 
@@ -135,9 +136,18 @@ public:
         std::ostream & outStream,
         Gna2DeviceVersion targetDeviceVersion);
 
+    template <class T>
     void dumpTLVForDeviceVersion(const uint32_t modelId, std::ostream& outStream,
-        uint32_t input_size, uint32_t output_size,
-        float inSF, float outSF);
+        const T& inputsContainer, const T& outputsContainer) {
+        const auto compileTarget = GetCompileTarget();
+        ExportTlvModel(modelId,
+                       nGnaDeviceIndex,
+                       outStream,
+                       compileTarget,
+                       inputsContainer,
+                       outputsContainer,
+                       allAllocations);
+    }
 
     void free(void * ptr);
 

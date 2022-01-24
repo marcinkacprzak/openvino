@@ -41,7 +41,9 @@ OPENVINO_SUPPRESS_DEPRECATED_END
 static const std::set<std::string> supportedTargets = {
     GNAConfigParams::GNA_TARGET_2_0,
     GNAConfigParams::GNA_TARGET_3_0,
+    "GNA_TARGET_3_1",
     "GNA_TARGET_3_5",
+    "GNA_TARGET_3_6",
     ""
 };
 
@@ -157,8 +159,14 @@ OPENVINO_SUPPRESS_DEPRECATED_END
                 target_str = GNAConfigParams::GNA_TARGET_2_0;
             } else if (ov::intel_gna::HWGeneration::GNA_3_0 == target) {
                 target_str = GNAConfigParams::GNA_TARGET_3_0;
+            } else if (ov::intel_gna::HWGeneration::GNA_3_1_E == target) {
+                target_str = "GNA_TARGET_3_1";
             } else if (ov::intel_gna::HWGeneration::GNA_3_5 == target) {
                 target_str = "GNA_TARGET_3_5";
+            } else if (ov::intel_gna::HWGeneration::GNA_3_5_E == target) {
+                target_str = "GNA_TARGET_3_5";
+            } else if (ov::intel_gna::HWGeneration::GNA_3_6_E == target) {
+                target_str = "GNA_TARGET_3_6";
             }
             set_target(target_str);
         } else if (key == GNA_CONFIG_KEY(EXEC_TARGET)) {
