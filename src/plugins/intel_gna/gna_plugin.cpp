@@ -339,6 +339,15 @@ std::string GNAPluginNS::GNAPlugin::GetCompileTarget() const {
     return InferenceEngine::GNAConfigParams::GNA_TARGET_3_0;
 }
 
+std::string GNAPluginNS::GNAPlugin::GetCompileTarget() const {
+    if (gnadevice) {
+        return gnadevice->GetCompileTarget();
+    } else if (!config.gnaCompileTarget.empty()) {
+        return config.gnaCompileTarget;
+    }
+    return "GNA_TARGET_3_5";
+}
+
 GNAPlugin::GNAPlugin(const std::map<std::string, std::string>& configMap) {
     Init();
     SetConfig(configMap);
@@ -1164,7 +1173,7 @@ void GNAPlugin::DumpXNNToFile() const {
     const auto& inputsDesc = inputs_ptr_->Get();
     const auto& outputsDesc = outputs_.Get();
 
-    if (InferenceEngine::GNAConfigParams::GNA_TARGET_2_0 == gnadevice->getEffectiveGnaCompileTarget()) {
+    if (InferenceEngine::GNAConfigParams::GNA_TARGET_2_0 == gnadevice->GetCompileTarget()) {
         auto dump = gnadevice->dumpXnn(modelId);
         dump.header.RwRegionSize = gnamem->getRegionBytes(REGION_SCRATCH);
         dump.header.InputScalingFactor = inputsDesc.begin()->scale_factor;

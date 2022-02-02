@@ -68,15 +68,26 @@ public:
     void fillConcatConnections(InferenceEngine::CNNLayerPtr layer);
     void fillSplitConnections(InferenceEngine::CNNLayerPtr layer);
 
-
-    void ValidateCnn2D(std::string name, const uint32_t inHeight, const uint32_t inWidth,
-        const uint32_t inChannels, const uint32_t kH, const uint32_t kW, const uint32_t kN,
-        const uint32_t strideH, const uint32_t strideW, OvGnaType inPrecision,
-        const uint32_t dilH, const uint32_t dilW) const;
+    void ValidateCnn2D(std::string name,
+                       const uint32_t inHeight,
+                       const uint32_t inWidth,
+                       const uint32_t inChannels,
+                       const uint32_t kH,
+                       const uint32_t kW,
+                       const uint32_t kN,
+                       const uint32_t strideH,
+                       const uint32_t strideW,
+                       const uint32_t dilH,
+                       const uint32_t dilW,
+                       OvGnaType inPrecision) const;
 
     void ValidatePooling2D(std::string name,
-        const uint32_t windowH, const uint32_t windowW,
-        const uint32_t strideH, const uint32_t strideW) const;
+                           const uint32_t windowH,
+                           const uint32_t windowW,
+                           const uint32_t strideH,
+                           const uint32_t strideW) const;
+
+    bool IsCnn2DInputPaddingSupported(std::string name) const;
 
     void SetValidatorTarget(std::string target);
 

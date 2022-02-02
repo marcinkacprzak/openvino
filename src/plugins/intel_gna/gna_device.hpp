@@ -86,7 +86,7 @@ public:
         initGnaPerfCounters();
 
         // check GNA Library version
-        const auto gnaLibVersion = GetGnaLibraryVersion();
+        GetGnaLibraryVersion();
     }
 
     GNADeviceHelper(const GNADeviceHelper&) = delete;
@@ -145,7 +145,7 @@ public:
     void getGnaPerfCounters(std::map<std::string,
                         InferenceEngine::InferenceEngineProfileInfo>& retPerfCounters);
     static std::string GetGnaLibraryVersion();
-    std::string getEffectiveGnaCompileTarget() const;
+
     std::string GetCompileTarget() const;
 
     const GnaAllocations& getAllAllocations() const {
