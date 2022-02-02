@@ -193,13 +193,15 @@ void GNAGraphCompiler::fillSplitConnections(InferenceEngine::CNNLayerPtr layer) 
     split_connection.emplace(id, layerInfoItem);
 }
 
-void GNAPluginNS::GNAGraphCompiler::SetValidatorTarget(std::string target) {
+void GNAPluginNS::GNAGraphCompiler::SetValidatorTarget(const std::string& target) {
     if (InferenceEngine::GNAConfigParams::GNA_TARGET_3_0 == target) {
         cnn2dValidator.reset(new GNALimitations::Cnn2D::Validator_30());
+    } else {
+        cnn2dValidator.reset(new GNALimitations::Cnn2D::Validator_35());
     }
 }
 
-void GNAPluginNS::GNAGraphCompiler::ValidateCnn2D(std::string name, const uint32_t inHeight, const uint32_t inWidth, const uint32_t inChannels,
+void GNAPluginNS::GNAGraphCompiler::ValidateCnn2D(const std::string& name, const uint32_t inHeight, const uint32_t inWidth, const uint32_t inChannels,
     const uint32_t kH, const uint32_t kW, const uint32_t kN, const uint32_t strideH, const uint32_t strideW, OvGnaType inPrecision,
     const uint32_t dilH, const uint32_t dilW) const {
     if (cnn2dValidator) {
@@ -209,12 +211,20 @@ void GNAPluginNS::GNAGraphCompiler::ValidateCnn2D(std::string name, const uint32
     }
 }
 
-void GNAPluginNS::GNAGraphCompiler::ValidatePooling2D(std::string name, const uint32_t windowH, const uint32_t windowW,
+void GNAPluginNS::GNAGraphCompiler::ValidatePooling2D(const std::string& name, const uint32_t windowH, const uint32_t windowW,
     const uint32_t strideH, const uint32_t strideW) const {
     if (cnn2dValidator) {
         cnn2dValidator->ValidatePooling2D(name, windowH, windowW, strideH, strideW);
     } else {
         THROW_GNA_EXCEPTION << "No Pooling2D validator found for layer " << name;
+    }
+}
+
+bool GNAPluginNS::GNAGraphCompiler::IsCnn2DInputPaddingSupported(const std::string& name) const {
+    if (cnn2dValidator) {
+        return cnn2dValidator->IsPaddingSupported();
+    } else {
+        THROW_GNA_EXCEPTION << "No CNN2D validator found for current target in layer " << name;
     }
 }
 
@@ -587,8 +597,9 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
     auto effectiveInputWidth = in_width;
     auto effectiveInputHeight = in_height;
 
-    if (convolution._padding_x != 0 || convolution._padding_y != 0 ||
-        convolution._pads_end.at(X_AXIS) != 0 || convolution._pads_end.at(Y_AXIS) != 0) {
+    if (!IsCnn2DInputPaddingSupported(convolution.name) &&
+        (convolution._padding_x != 0 || convolution._padding_y != 0 ||
+        convolution._pads_end.at(X_AXIS) != 0 || convolution._pads_end.at(Y_AXIS) != 0)) {
         THROW_GNA_LAYER_EXCEPTION(layer) << "Convolution's input padding is not supported";
     }
 

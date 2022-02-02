@@ -90,6 +90,7 @@ static bool GNA30SupportedConv(const std::string& gnaCompileTarget, const Infere
         return false;
     }
     const auto& cnn2dValidator = *cnn2dValidatorPtr;
+
     const auto cnnIsValid = cnn2dValidator.ValidateCnn2D(graph_data.conv->get_friendly_name(),
         conv_data.input_height, conv_data.input_width, conv_data.input_channel_count,
         conv_data.filter_height, conv_data.filter_width, conv_data.filter_channel_count,

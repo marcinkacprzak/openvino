@@ -57,8 +57,8 @@ class GNADeviceHelper {
 
     static const uint32_t TotalGna2InstrumentationPoints = 2;
     Gna2InstrumentationPoint gna2InstrumentationPoints[TotalGna2InstrumentationPoints] = {
-        Gna2InstrumentationPointHwTotalCycles,
-        Gna2InstrumentationPointHwStallCycles };
+        Gna2InstrumentationPointHwTotal,
+        Gna2InstrumentationPointHwStall};
 
     uint64_t instrumentationResults[TotalGna2InstrumentationPoints] = {};
     uint64_t instrumentationTotal[TotalGna2InstrumentationPoints] = {};
@@ -92,7 +92,7 @@ public:
         initGnaPerfCounters();
 
         // check GNA Library version
-        const auto gnaLibVersion = GetGnaLibraryVersion();
+        GetGnaLibraryVersion();
     }
 
     GNADeviceHelper(const GNADeviceHelper&) = delete;
@@ -160,7 +160,7 @@ public:
     void getGnaPerfCounters(std::map<std::string,
                         InferenceEngine::InferenceEngineProfileInfo>& retPerfCounters);
     static std::string GetGnaLibraryVersion();
-    std::string getEffectiveGnaCompileTarget() const;
+
     std::string GetCompileTarget() const;
 
     const GnaAllocations& getAllAllocations() const {
