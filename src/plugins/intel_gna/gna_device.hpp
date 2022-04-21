@@ -98,6 +98,9 @@ public:
         }
     }
 
+    bool debugMode = false;
+    void exportAllAllocations(int idx, std::string infix) const;
+
     uint8_t *alloc(uint32_t size_requested, uint32_t *size_granted);
     void tagMemoryRegion(void* memPtr, const GNAPluginNS::memory::rRegion memoryTag);
 

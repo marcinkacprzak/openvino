@@ -246,6 +246,7 @@ int main(int argc, char* argv[]) {
         gnaPluginConfig[ov::intel_gna::compile_target.name()] = parse_target(FLAGS_compile_target);
         gnaPluginConfig[ov::intel_gna::memory_reuse.name()] = !FLAGS_memory_reuse_off;
         gnaPluginConfig[ov::intel_gna::pwl_max_error_percent.name()] = FLAGS_pwl_me;
+        gnaPluginConfig[ov::log::level.name()] = FLAGS_log;
         // -----------------------------------------------------------------------------------------------------
         // --------------------------- Write model to file --------------------------------------------------
         // Embedded GNA model dumping (for Intel(R) Speech Enabling Developer Kit)
