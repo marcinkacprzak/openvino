@@ -16,10 +16,14 @@
 
 namespace GNAPluginNS {
 namespace GNAConvolutionLayer {
+bool dontMapFrom2DTo1D = true;
 
 bool isMappableFrom2DTo1D(const uint32_t inHeight, const uint32_t inWidth, const uint32_t in_channels,
                           const uint32_t kernelHeight, const uint32_t kernelWidth,
                           const uint32_t strideHeight, const uint32_t strideWidth) {
+    if (dontMapFrom2DTo1D) {
+        return false;
+    }
     return ((inHeight > 1 && inWidth > 1) &&
             ((inWidth == kernelWidth && strideWidth == 1) ||
              (inHeight == kernelHeight && strideHeight == 1 && in_channels == 1)));
