@@ -337,7 +337,7 @@ std::string GNAPluginNS::GNAPlugin::GetCompileTarget() const {
     } else if (!config.gnaCompileTarget.empty()) {
         return config.gnaCompileTarget;
     }
-    return "GNA_TARGET_3_5";
+    return "GNA_TARGET_3_6";
 }
 
 GNAPlugin::GNAPlugin(const std::map<std::string, std::string>& configMap) {

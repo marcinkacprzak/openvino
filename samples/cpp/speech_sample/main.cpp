@@ -240,6 +240,7 @@ int main(int argc, char* argv[]) {
             return (target == "GNA_TARGET_2_0") ? ov::intel_gna::HWGeneration::GNA_2_0
                                                 : (target == "GNA_TARGET_3_0") ? ov::intel_gna::HWGeneration::GNA_3_0
                                                 : (target == "GNA_TARGET_3_5") ? ov::intel_gna::HWGeneration::GNA_3_5
+                                                : (target == "GNA_TARGET_3_6") ? ov::intel_gna::HWGeneration::GNA_3_6_E
                                                                                : ov::intel_gna::HWGeneration::UNDEFINED;
         };
         gnaPluginConfig[ov::intel_gna::execution_target.name()] = parse_target(FLAGS_exec_target);

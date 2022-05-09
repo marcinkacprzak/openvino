@@ -387,11 +387,13 @@ Parameter Config::GetParameter(const std::string& name) const {
         return ((gnaExecTarget == GNAConfigParams::GNA_TARGET_2_0) ? ov::intel_gna::HWGeneration::GNA_2_0 :
                 (gnaExecTarget == GNAConfigParams::GNA_TARGET_3_0) ? ov::intel_gna::HWGeneration::GNA_3_0 :
                 (gnaExecTarget == "GNA_TARGET_3_5") ? ov::intel_gna::HWGeneration::GNA_3_5 :
+                (gnaExecTarget == "GNA_TARGET_3_6") ? ov::intel_gna::HWGeneration::GNA_3_6_E :
                 ov::intel_gna::HWGeneration::UNDEFINED);
     } else if (name ==  ov::intel_gna::compile_target) {
         return ((gnaCompileTarget == GNAConfigParams::GNA_TARGET_2_0) ? ov::intel_gna::HWGeneration::GNA_2_0 :
                 (gnaCompileTarget == GNAConfigParams::GNA_TARGET_3_0) ? ov::intel_gna::HWGeneration::GNA_3_0 :
                 (gnaCompileTarget == "GNA_TARGET_3_5") ? ov::intel_gna::HWGeneration::GNA_3_5 :
+                (gnaCompileTarget == "GNA_TARGET_3_6") ? ov::intel_gna::HWGeneration::GNA_3_6_E :
                 ov::intel_gna::HWGeneration::UNDEFINED);
     } else if (name == ov::hint::performance_mode) {
         return performance_mode;

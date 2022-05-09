@@ -30,8 +30,6 @@
 
 #include "gna_device_allocation.hpp"
 
-#define Gna2DeviceVersionEmbedded3_6 static_cast<Gna2DeviceVersion>(0x35E)
-
 enum GnaWaitStatus : int {
     GNA_REQUEST_COMPLETED = 0,  // and removed from GNA library queue
     GNA_REQUEST_ABORTED = 1,    // for QoS purposes
