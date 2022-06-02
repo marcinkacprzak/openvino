@@ -22,7 +22,7 @@ namespace GNAPluginNS {
  *            |     |
  *            Eltwise
  *
- * Where Eltwise node is one of the: Multiply, Substract and Add
+ * Where Eltwise node is one of the: Multiply, Substract, Add or ScaleShiftIE
  * There are different types of broadcasting: NONE/EXPLICIT, NUMPY and PDPD
  *
  * If eltwise node inputs have different shapes and one the inputs is Constant node
