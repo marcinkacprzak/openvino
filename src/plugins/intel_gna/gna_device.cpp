@@ -53,9 +53,9 @@ GNADeviceHelper::GNADeviceHelper(std::string executionTargetIn,
 }
 
 GNADeviceHelper ::~GNADeviceHelper() {
-   // if (satCounter > 0 && waitCounter > 0) {
+    if (debugLogEnabled) {
         std::cout << "Saturation Counter = " << satCounter << "/" << waitCounter << std::endl;
-    //}
+    }
     if (deviceOpened) {
         close();
     }
