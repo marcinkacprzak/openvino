@@ -741,10 +741,10 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
             manager.register_pass<ov::intel_gna::pass::PWLApproximation>(config.gnaFlags.pwlMaxErrorPercent);
         }
         manager.register_pass<ngraph::pass::UnrollTensorIterator>();
-        manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeAssignLayer>();
-        manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeConcatLayer>();
-        manager.register_pass<ov::intel_gna::pass::HandleMultiConnectedLayerToConcatAndMemory>();
-        manager.register_pass<ov::intel_gna::pass::HandleNonFunctionalSubgraphs>();
+        //manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeAssignLayer>();
+        //manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeConcatLayer>();
+        //manager.register_pass<ov::intel_gna::pass::HandleMultiConnectedLayerToConcatAndMemory>();
+        //manager.register_pass<ov::intel_gna::pass::HandleNonFunctionalSubgraphs>();
         const auto& pass_config = manager.get_pass_config();
 
         // Allowing FP16 Converts to be folded and FP16 constants to upgrade to FP32 data type
@@ -833,9 +833,9 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         passes->registerPass<EltwiseSplitOverChannelsPass>();
         passes->registerPass<InsertSplitAligningFilterPass>();
 
-        if (!isNgraphPassesUsed) {
+        //if (!isNgraphPassesUsed) {
             passes->registerPass<InsertCopyLayerPass>();
-        }
+        //}
         passes->registerPass<FlattenTrivialConcatPass>();
         passes->registerPass<InsertConcatAligningFilterPass>();
         passes->registerPass<ReorderConcatInputsPass>();
