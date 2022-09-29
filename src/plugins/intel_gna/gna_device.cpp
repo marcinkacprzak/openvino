@@ -53,6 +53,9 @@ GNADeviceHelper::GNADeviceHelper(std::string executionTargetIn,
 }
 
 GNADeviceHelper ::~GNADeviceHelper() {
+   // if (satCounter > 0 && waitCounter > 0) {
+        std::cout << "Saturation Counter = " << satCounter << "/" << waitCounter << std::endl;
+    //}
     if (deviceOpened) {
         close();
     }
@@ -468,6 +471,10 @@ const std::map <const std::pair<Gna2OperationType, int32_t>, const std::string> 
 GNAPluginNS::RequestStatus GNADeviceHelper::waitForRequest(uint32_t requestID, int64_t timeoutMilliseconds) {
     std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
     const auto status = Gna2RequestWait(requestID, timeoutMilliseconds);
+    waitCounter++;
+    if (Gna2StatusWarningArithmeticSaturation == status) {
+        satCounter++;
+    }
     if (status == Gna2StatusWarningDeviceBusy) {
         return GNAPluginNS::RequestStatus::kPending;
     }
