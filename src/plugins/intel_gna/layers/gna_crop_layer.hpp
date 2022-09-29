@@ -33,6 +33,15 @@ inline std::tuple<size_t, size_t, std::vector<int32_t>> GetCropParams(InferenceE
     IE_ASSERT(cropLayer->axis.size() == cropLayer->dim.size());
     IE_ASSERT(cropLayer->axis.size() == cropLayer->offset.size());
 
+    if (cropLayer->axis.size() == 4 && cropLayer->offset.size() == 4 && cropLayer->offset[0] == 0 &&
+        cropLayer->offset[1] == 0 && cropLayer->offset[2] == 1 &&
+        cropLayer->offset[3] == 0 && cropLayer->dim.size() == 4) {
+        size_t cropOffset = cropLayer->dim[1] * cropLayer->dim[3];
+        size_t cropOutputSize = cropLayer->dim[1] * cropLayer->dim[2] * cropLayer->dim[3];
+        std::vector<int32_t> axis{0};
+
+        return std::make_tuple(cropOffset, cropOutputSize, axis);
+    }
     std::vector<int> axis, dim, offset;
     auto inputs = cropLayer->insData.begin()->lock();
     for (int n = 0; n < cropLayer->axis.size(); n++) {

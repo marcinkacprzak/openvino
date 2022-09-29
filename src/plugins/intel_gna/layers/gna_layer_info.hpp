@@ -343,7 +343,7 @@ class LayerInfo {
         if (cropLayer != nullptr && !cropLayer->offset.empty()) {
             size_t offset;
             std::tie(offset, std::ignore, std::ignore) = GetCropParams(cropLayer);
-            return GNAPluginNS::GNALimitations::isCropAffinedOffset(offset);
+            //return GNAPluginNS::GNALimitations::isCropAffinedOffset(offset);
         }
         return false;
     }
