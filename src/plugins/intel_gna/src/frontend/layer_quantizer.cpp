@@ -18,7 +18,7 @@ bool LayerQuantizer::IsBiasCompound(const LayerInfo& layer_info,
                                     const QuantizedLayerParams* quant_layer_params) {
     auto biases_precision = GetBiasesPrecision(layer_info, *quant_layer_params);
     auto compound_bias_precision = InferenceEngine::Precision::fromType<gna_compound_bias_t>();
-    return (biases_precision == compound_bias_precision ? true : false);
+    return (biases_precision == compound_bias_precision);
 }
 
 template <class T>
@@ -44,6 +44,7 @@ InferenceEngine::Blob::Ptr LayerQuantizer::FP32ToPrecisionBlob(InferenceEngine::
     auto output_low = 0.0f;
     auto output_high = 0.0f;
     auto levels = 1;
+
     if (dst_quant_params.IsStatsSet()) {
         input_low = dst_quant_params.GetMinValues(true).front();
         input_high = dst_quant_params.GetMaxValues(true).front();
@@ -52,14 +53,10 @@ InferenceEngine::Blob::Ptr LayerQuantizer::FP32ToPrecisionBlob(InferenceEngine::
         levels = dst_quant_params.GetLevels();
     }
 
-    int i = 0;
-
-    auto f32_value_array =
-        fp32_blob->buffer()
-            .template as<InferenceEngine::PrecisionTrait<InferenceEngine::Precision::FP32>::value_type*>();
+    auto f32_value_array = fp32_blob->buffer().as<float*>();
 
     for (auto& prec_value : *prec_blob) {
-        auto f32_value = f32_value_array[i++];
+        auto f32_value = *f32_value_array++;
 
         if (dst_quant_params.IsStatsSet()) {
             f32_value = ApplyFQ(f32_value, input_low, input_high, output_low, output_high, levels);
@@ -68,7 +65,7 @@ InferenceEngine::Blob::Ptr LayerQuantizer::FP32ToPrecisionBlob(InferenceEngine::
         f32_value = f32_value * dst_quant_params.GetScale();
         prec_value = SaturationCast<T>(f32_value);
     }
-
+    //TODO
     return static_cast<InferenceEngine::Blob::Ptr>(prec_blob);
 }
 
@@ -108,22 +105,13 @@ size_t LayerQuantizer::GetBiasSizeForLayer(InferenceEngine::WeightableLayer& wl)
 }
 
 std::pair<size_t, size_t> LayerQuantizer::GetNumRowsColumns(InferenceEngine::WeightableLayer& wl) {
-    size_t num_rows;
-    size_t num_columns;
+    size_t num_rows = 0;
+    size_t num_columns = 0;
 
     if (LayerInfo(wl).isScaleShift()) {
         num_columns = 1;
         num_rows = wl._weights->size();
     } else if (LayerInfo(wl).isConvolution() || LayerInfo(wl).isConvolutionFilter()) {
-        if (wl.outData.front()->getDims().size() < 2) {
-            IE_THROW() << "Unsupported output dims size for " << wl.name << ". Should be > 1, but is "
-                       << wl.outData.front()->getDims().size();
-        }
-        if (wl.insData.front().lock().get()->getDims().size() < 2) {
-            IE_THROW() << "Unsupported input dims size for " << wl.name << ". Should be > 1, but is "
-                       << wl.insData.front().lock().get()->getDims().size();
-        }
-
         num_rows = GetBiasSizeForLayer(wl);
 
         if (num_rows == 0) {
@@ -321,6 +309,24 @@ void LayerQuantizer::CreateConstBlob(InferenceEngine::CNNLayer& cnn_layer) {
             FP32ToPrecisionBlob(const_blob, cnn_layer.outData.front()->getPrecision(), quant_params->_dst_quant);
     }
 }
+
+void LayerQuantizer::quantize(InferenceEngine::CNNLayer& layer) {
+    auto layer_info = LayerInfo(layer);
+
+    if (layer_info.isWeightable()) {
+        QuantizeWeightsBiases(dynamic_cast<InferenceEngine::WeightableLayer&>(layer));
+    } else {
+        layer.precision = GetInputPrecision();
+
+        SetLayerOutputPrecision(layer);
+
+        if (layer_info.isConst()) {
+            CreateConstBlob(layer);
+        }
+    }
+}
+
+LayerQuantizer::LayerQuantizer(const Config& gna_config) : gna_config(gna_config) {}
 
 InferenceEngine::Precision LayerQuantizer::GetOutputPrecision() {
     return InferenceEngine::Precision::I32;

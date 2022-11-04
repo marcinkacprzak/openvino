@@ -869,7 +869,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
 
     if (gnaFlags->sw_fp32) {
         auto visitor = [&](InferenceEngine::CNNLayerPtr lp) {
-            frontend::convertBlobs(*lp);
+            ov::intel_gna::frontend::convert_blobs_precision(*lp);
             return lp;
         };
         newNet = InferenceEngine::CNNNetCopy(network, visitor);
@@ -877,7 +877,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         run_passes(newNet, true, gnaFlags->input_low_precision);
         run_passes(newNet, false, gnaFlags->input_low_precision);
     } else {
-        frontend::ModelQuantizer modelQuantizer(config, fake_quantized);
+        ov::intel_gna::frontend::ModelQuantizer modelQuantizer(config, fake_quantized);
         newNet = modelQuantizer.quantize(network, run_passes, *inputs_ptr_);
     }
 

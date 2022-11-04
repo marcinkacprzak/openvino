@@ -71,23 +71,9 @@ class LayerQuantizer {
                                                   const QuantizedLayerParams& quant_layer_params);
 
 public:
-    LayerQuantizer(const Config& gna_config) : gna_config(gna_config) {}
+    LayerQuantizer(const Config& gna_config);
 
-    void quantize(InferenceEngine::CNNLayer& layer) {
-        auto layer_info = LayerInfo(layer);
-
-        if (layer_info.isWeightable()) {
-            QuantizeWeightsBiases(dynamic_cast<InferenceEngine::WeightableLayer&>(layer));
-        } else {
-            layer.precision = GetInputPrecision();
-
-            SetLayerOutputPrecision(layer);
-
-            if (layer_info.isConst()) {
-                CreateConstBlob(layer);
-            }
-        }
-    }
+    void quantize(InferenceEngine::CNNLayer& layer);
 };
 
 template <>

@@ -31,19 +31,17 @@ InferenceEngine::Blob::Ptr make_fp32_blob(InferenceEngine::Blob::Ptr fp16_blob) 
                                                                fp16_blob->getTensorDesc().getDims(),
                                                                fp16_blob->getTensorDesc().getLayout()});
     fp32_blob->allocate();
+    auto f16_value_array = fp16_blob->buffer().as<int16_t*>();
 
-    int i = 0;
     for (auto& f32Value : *fp32_blob) {
-        auto f16Value =
-            fp16_blob->buffer()
-                .template as<InferenceEngine::PrecisionTrait<InferenceEngine::Precision::FP16>::value_type*>()[i++];
+        auto f16Value = *f16_value_array++;
         f32Value = InferenceEngine::PrecisionUtils::f16tof32(f16Value);
     }
 
     return static_cast<InferenceEngine::Blob::Ptr>(fp32_blob);
 }
 
-void convertBlobs(InferenceEngine::CNNLayer& layer) {
+void convert_blobs_precision(InferenceEngine::CNNLayer& layer) {
     auto layer_info = GNAPluginNS::LayerInfo(layer);
 
     if (layer_info.isWeightable()) {
