@@ -40,7 +40,7 @@ public:
                                          const GnaInputs& inputs) const {
         OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "ModelQuantizer::quantize");
         auto visitor = [&](InferenceEngine::CNNLayerPtr layer_ptr) {
-            auto new_layer = InferenceEngine::injectData<frontend::QuantizedLayerParams>(layer_ptr);
+            auto new_layer = InferenceEngine::injectData<QuantizedLayerParams>(layer_ptr);
             convertBlobs(*new_layer);
             return new_layer;
         };
